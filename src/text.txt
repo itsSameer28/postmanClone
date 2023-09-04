@@ -1,0 +1,853 @@
+import React, { useState,useEffect } from "react";
+import axios from "axios";
+
+export default function PostMan() {
+  
+  //States
+  const [mainButton, setMainButton] = useState(false);
+  const [method, setMethod] = useState("GET");
+  const [url, setUrl] = useState("");
+  const [body, setBody] = useState("");
+  const [buttonClick, setButtonClick] = useState(false);
+  const [openBodyTextButton, setOpenBodyTextButton] = useState(false);
+  const [response, setResponse] = useState(null);
+  const [id, setId] = useState("");
+  const [error, setError] = useState(null);
+  const [deleteButton, setDeleteButton] = useState(false);
+  const [keyParams, setKeyParams] = useState("");
+  const [valueParams, setValueParams] = useState("");
+  const [paramsButton, setParamsButton] = useState(false);
+
+  const handleMethodChange = (event) => {
+    setMethod(event.target.value);
+  };
+
+  const handleUrlChange = (event) => {
+    setUrl(event.target.value);
+  };
+
+  const handleBodyChange = (e) => {
+    setBody(e.target.value);
+    try {
+      JSON.parse(body);
+      setError("valid JSON");
+      return;
+    } catch (err) {
+      setError("InValid Json");
+      return;
+    }
+  };
+
+  // Actions Performing on Submission Of Form
+  const handleSubmit = (event) => {
+    event.preventDefault();
+
+    //Passing Header
+    const config = {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    };
+    
+    //Parsing a data of body
+    let data = {};
+    if (method === "POST" || method === "PUT") {
+      try {
+        data = JSON.parse(body);
+      } catch (err) {
+        setError("Invalid JSON");
+        return;
+      }
+    }
+
+    //Params Response
+    if (keyParams !== "" && valueParams !== "") {
+      axios
+        .get(url)
+        .then((res) => setResponse(res.data))
+        .catch((err) => setResponse(err.message));
+    }
+   
+    //HTTP Protocols' Response
+    let resPromise;
+    if (method === "GET") {
+      if (url) {
+        resPromise = axios.get(url);
+      } else {
+        setError("URL is not defined");
+        return;
+      }
+    } else if (method === "POST") {
+      if (url && data) {
+        resPromise = axios.post(url, data, config);
+      } else {
+        setError("URL or data is not defined");
+        return;
+      }
+    } else if (method === "DELETE") {
+      if (url && id) {
+        resPromise = axios.delete(`${url}/${id}`, config);
+      } else {
+        setError("URL or ID is not defined");
+        return;
+      }
+    } else if (method === "PUT") {
+      if (url && data) {
+        resPromise = axios.put(`${url}/${id}`, data, config);
+      } else {
+        setError("URL or data is not defined");
+        return;
+      }
+    } else {
+      setError("Invalid method");
+      return;
+    }
+    resPromise
+      .then((res) => {
+        setResponse(res.data);
+        setError(null);
+      })
+      .catch((error) => {
+        console.error(error);
+        setError(error.message);
+      });
+  };
+
+  //Loading Data
+  axios.interceptors.request.use((req) => {
+    document.getElementById("loading").style.display = "block";
+    return req;
+  });
+
+  axios.interceptors.response.use((res) => {
+    document.getElementById("loading").style.display = "none";
+    return res;
+  });
+
+  //Setting Key Values In the URL With The Help Of useEffect
+  useEffect(() => {
+    if (url!== "") {
+      const newURL = new URL(url);
+      const searchParams = newURL.searchParams;
+      searchParams.forEach((_, paramKey) => {
+        if (paramKey !== keyParams) {
+          searchParams.delete(paramKey);
+        }
+      });
+      if (valueParams) {
+        newURL.searchParams.set(keyParams,valueParams);
+      } else {
+        newURL.searchParams.delete(keyParams, valueParams);
+      }
+     setUrl(newURL)
+    }
+  }, [keyParams, valueParams]);
+
+  //Return Section
+  return (
+    <div className="form-container">
+      <div className="form-operations">
+        <form onSubmit={handleSubmit}>
+          <button className="form-button" onClick={(e) => setMainButton(true)}>
+            Click For Get PostMan
+          </button>
+          <br />
+          <br />
+          {mainButton && (
+            <div>
+              <label className="form-label">
+                Method:
+                <select
+                  className="form-select"
+                  value={method}
+                  onChange={handleMethodChange}
+                >
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                  <option value="DELETE">DELETE</option>
+                  <option value="PUT">PUT</option>
+                </select>
+              </label>
+              <br />
+              <br />
+              <label className="form-label">
+                URL:
+                <button
+                  className="form-button"
+                  onClick={(e) => setButtonClick(true)}
+                >
+                  Open Url
+                </button>
+                <br />
+                <br />
+                {buttonClick && (
+                  <input
+                    className="form-input"
+                    type="text"
+                    placeholder="URL"
+                    value={url}
+                    onChange={handleUrlChange}
+                  />
+                )}
+              </label>
+              <br />
+              <br />
+              <label className="form-label">
+                Params:
+                <button
+                  className="form-button"
+                  onClick={(e) => {
+                    setParamsButton(true);
+                    setOpenBodyTextButton(true);
+                    setButtonClick(false);
+                  }}
+                >
+                  Params
+                </button>
+                {paramsButton && (
+                  <div>
+                    <input
+                      className="form-input"
+                      type="text"
+                      placeholder="Key"
+                      value={keyParams}
+                      onChange={(e) => setKeyParams(e.target.value)}
+                    />
+                    <br />
+                    <br />
+                    <input
+                      className="form-input"
+                      type="text"
+                      value={valueParams}
+                      placeholder="Value"
+                      onChange={(e) => setValueParams(e.target.value)}
+                    />
+                  </div>
+                )}
+              </label>
+              {method === "PUT" && (
+                <label className="form-label">
+                  Body:
+                  <button
+                    className="form-button"
+                    onClick={() => {
+                      setOpenBodyTextButton(true);
+                      setButtonClick(false);
+                    }}
+                  >
+                    Click For Write Body
+                  </button>
+                  <br />
+                  <br />
+                  {openBodyTextButton && (
+                    <textarea
+                      className="form-textarea"
+                      placeholder="Body"
+                      value={body}
+                      onChange={handleBodyChange}
+                      rows="8"
+                      cols="25"
+                    />
+                  )}
+                  <br />
+                  <br />
+                  <label className="form-label">
+                    <button
+                      className="form-button"
+                      onClick={() => {
+                        setOpenBodyTextButton(false);
+                        setButtonClick(false);
+                        setDeleteButton(true);
+                      }}
+                    >
+                      ID For Edit In Data:
+                    </button>
+                    <br />
+                    <br />
+                    {deleteButton && (
+                      <input
+                        className="form-input"
+                        type="text"
+                        value={id}
+                        onChange={(e) => setId(e.target.value)}
+                      />
+                    )}
+                  </label>
+                  <br />
+                  <br />
+                  {error && (
+                    <p className="form-error" style={{ color: "red" }}>
+                      {error}
+                    </p>
+                  )}
+                </label>
+              )}
+              {method === "POST" ? (
+                <label className="form-label">
+                  Body:
+                  <button
+                    className="form-button"
+                    onClick={() => {
+                      setOpenBodyTextButton(true);
+                      setButtonClick(false);
+                    }}
+                  >
+                    Click For Write Body
+                  </button>
+                  <br />
+                  <br />
+                  {openBodyTextButton && (
+                    <textarea
+                      className="form-textarea"
+                      value={body}
+                      onChange={handleBodyChange}
+                      rows="8"
+                      cols="25"
+                    />
+                  )}
+                  {error && (
+                    <p className="form-error" style={{ color: "red" }}>
+                      {error}
+                    </p>
+                  )}
+                </label>
+              ) : method === "DELETE" ? (
+                <div>
+                  <label className="form-label">
+                    <button
+                      className="form-button"
+                      onClick={() => {
+                        setOpenBodyTextButton(true);
+                        setButtonClick(false);
+                        setDeleteButton(true);
+                      }}
+                    >
+                      ID For Delete Data:
+                    </button>
+                    <br />
+                    <br />
+
+                    {deleteButton && (
+                      <input
+                        className="form-input"
+                        type="text"
+                        value={id}
+                        onChange={(e) => setId(e.target.value)}
+                      />
+                    )}
+                  </label>
+                </div>
+              ) : null}
+              <br />
+              <br />
+              <button className="form-button form-submit" type="submit">
+                Submit
+              </button>
+            </div>
+          )}
+        </form>
+      </div>
+      <div className="form-response">
+        {response && (
+          <pre className="form-response">
+            {JSON.stringify(response, null, 2)}
+          </pre>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+
+
+/* Form container */
+.form-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* Form operations */
+.form-operations {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  width: 60%;
+  padding-right: 20px;
+  box-sizing: border-box;
+}
+
+/* Form button */
+.form-button {
+  background-color: #008CBA;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.form-button:hover {
+  background-color: #006B87;
+}
+
+/* Form label */
+.form-label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+/* Form select */
+.form-select {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+/* Form input */
+.form-input {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  margin-bottom: 10px;
+}
+
+/* Form textarea */
+.form-textarea {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  margin-bottom: 10px;
+}
+
+/* Form submit button */
+.form-submit {
+  background-color: #4CAF50;
+  color: #fff;
+}
+
+.form-submit:hover {
+  background-color: #3e8e41;
+}
+
+/* Form response */
+.form-response {
+  width: 40%;
+  padding: 20px;
+  box-sizing: border-box;
+  overflow: auto;
+  white-space: pre-wrap;
+  background-color: #f7f7f7;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+
+export default function PostMan() {
+  //States
+  const [mainButton, setMainButton] = useState(false);
+  const [method, setMethod] = useState("GET");
+  const [url, setUrl] = useState("");
+  const [body, setBody] = useState("");
+  const [buttonClick, setButtonClick] = useState(false);
+  const [openBodyTextButton, setOpenBodyTextButton] = useState(false);
+  const [response, setResponse] = useState(null);
+  const [id, setId] = useState("");
+  const [error, setError] = useState(null);
+  const [deleteButton, setDeleteButton] = useState(false);
+  const [keyParams, setKeyParams] = useState("");
+  const [valueParams, setValueParams] = useState("");
+  const [paramsButton, setParamsButton] = useState(false);
+
+  const handleMethodChange = (event) => {
+    setMethod(event.target.value);
+  };
+
+  const handleUrlChange = (event) => {
+    setUrl(event.target.value);
+  };
+
+  const handleBodyChange = (e) => {
+    setBody(e.target.value);
+    //JSON Editot Validation
+    try {
+      JSON.parse(body);
+      setError("valid JSON");
+      return;
+    } catch (err) {
+      setError("InValid Json");
+      return;
+    }
+  };
+
+
+  //Make a function that parse the body content in the case of put and post
+  let data = {};
+  const handleParsingData = () => {
+    if (method === "POST" || method === "PUT") {
+      try {
+        data = JSON.parse(body);
+      } catch (err) {
+        setError("Invalid JSON");
+        return;
+      }
+    }
+  };
+
+  //Function that Handle Responses and Errors By Promises:-
+  const handleResponseChange = (resPromise) => {
+    resPromise
+      .then((res) => {
+        setResponse(res.data);
+        setError(null);
+      })
+      .catch((error) => setResponse(error.message));
+  };
+
+  const hanldeResponsesOfProtocols =()=>{
+  
+
+  }
+
+  // Actions Performing on Submission Of Form
+  const handleSubmit = (event) => {
+    event.preventDefault();
+
+    //Passing Header
+    const config = {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    };
+
+    //Calling a function that parse the body content in the case of put and post
+    handleParsingData();
+
+    //Params Response
+    if (keyParams !== "" && valueParams !== "") {
+      axios
+        .get(url)
+        .then((res) => setResponse(res.data))
+        .catch((err) => setResponse(err.message));
+    }
+
+    // HTTP Protocols' Response
+    let resPromise;
+    switch (method) {
+      case "GET":
+        if (url) {
+          resPromise = axios.get(url);
+        } else {
+          setError("URL is not defined");
+          return;
+        }
+        break;
+      case "POST":
+        if (url && data) {
+          resPromise = axios.post(url, data, config);
+        } else {
+          setError("URL or data is not defined");
+          return;
+        }
+        break;
+      case "DELETE":
+        if (url && id) {
+          resPromise = axios.delete(`${url}/${id}`, config);
+        } else {
+          setError("URL or ID is not defined");
+          return;
+        }
+        break;
+      case "PUT":
+        if (url && data) {
+          resPromise = axios.put(`${url}/${id}`, data, config);
+        } else {
+          setError("URL or data is not defined");
+          return;
+        }
+        break;
+      default:
+        setError("Invalid method");
+        return;
+    }
+    //Calling a function which handles the responses of the methods
+    handleResponseChange(resPromise);
+
+    //Loading Response
+    axios.interceptors.request.use((req) => {
+      document.getElementById("loading").style.display = "block";
+      return req;
+    });
+
+    axios.interceptors.response.use((res) => {
+      document.getElementById("loading").style.display = "none";
+      return res;
+    });
+  };
+
+  //Setting Key Values In the URL With The Help Of useEffect
+  useEffect(() => {
+    if (url !== "") {
+      const newURL = new URL(url);
+      const searchParams = newURL.searchParams;
+      searchParams.forEach((_, paramKey) => {
+        if (paramKey !== keyParams) {
+          searchParams.delete(paramKey);
+        }
+      });
+      if (valueParams || keyParams) {
+        newURL.searchParams.set(keyParams, valueParams);
+      } else {
+        newURL.searchParams.delete(keyParams, valueParams);
+      }
+      setUrl(newURL);
+    }
+  }, [keyParams, valueParams]);
+
+  //Return Section
+  return (
+    <div className="form-container">
+      <div className="form-operations">
+        <form onSubmit={handleSubmit}>
+          <button className="form-button" onClick={(e) => setMainButton(true)}>
+            Click For Get PostMan
+          </button>
+          <br />
+          <br />
+          {mainButton && (
+            <div>
+              <label className="form-label">
+                Method:
+                <select
+                  className="form-select"
+                  value={method}
+                  onChange={handleMethodChange}
+                >
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                  <option value="DELETE">DELETE</option>
+                  <option value="PUT">PUT</option>
+                </select>
+              </label>
+              <br />
+              <br />
+              <label className="form-label">
+                URL:
+                <button
+                  className="form-button"
+                  onClick={(e) => setButtonClick(true)}
+                >
+                  Open Url
+                </button>
+                <br />
+                <br />
+                {buttonClick && (
+                  <input
+                    className="form-input"
+                    type="text"
+                    placeholder="URL"
+                    value={url}
+                    onChange={handleUrlChange}
+                  />
+                )}
+              </label>
+              <br />
+              <br />
+              <label className="form-label">
+                Params:
+                <button
+                  className="form-button"
+                  onClick={(e) => {
+                    setParamsButton(true);
+                    setOpenBodyTextButton(true);
+                    setButtonClick(false);
+                  }}
+                >
+                  Params
+                </button>
+                {paramsButton && (
+                  <div>
+                    <input
+                      className="form-input"
+                      type="text"
+                      placeholder="Key"
+                      value={keyParams}
+                      onChange={(e) => setKeyParams(e.target.value)}
+                    />
+                    <br />
+                    <br />
+                    <input
+                      className="form-input"
+                      type="text"
+                      value={valueParams}
+                      placeholder="Value"
+                      onChange={(e) => setValueParams(e.target.value)}
+                    />
+                  </div>
+                )}
+              </label>
+              {method === "PUT" && (
+                <label className="form-label">
+                  Body:
+                  <button
+                    className="form-button"
+                    onClick={() => {
+                      setOpenBodyTextButton(true);
+                      setButtonClick(false);
+                    }}
+                  >
+                    Click For Write Body
+                  </button>
+                  <br />
+                  <br />
+                  {openBodyTextButton && (
+                    <textarea
+                      className="form-textarea"
+                      placeholder="Body"
+                      value={body}
+                      onChange={handleBodyChange}
+                      rows="8"
+                      cols="25"
+                    />
+                  )}
+                  <br />
+                  <br />
+                  <label className="form-label">
+                    <button
+                      className="form-button"
+                      onClick={() => {
+                        setOpenBodyTextButton(false);
+                        setButtonClick(false);
+                        setDeleteButton(true);
+                      }}
+                    >
+                      ID For Edit In Data:
+                    </button>
+                    <br />
+                    <br />
+                    {deleteButton && (
+                      <input
+                        className="form-input"
+                        type="text"
+                        value={id}
+                        onChange={(e) => setId(e.target.value)}
+                      />
+                    )}
+                  </label>
+                  <br />
+                  <br />
+                  {error && (
+                    <p className="form-error" style={{ color: "red" }}>
+                      {error}
+                    </p>
+                  )}
+                </label>
+              )}
+              {method === "POST" ? (
+                <label className="form-label">
+                  Body:
+                  <button
+                    className="form-button"
+                    onClick={() => {
+                      setOpenBodyTextButton(true);
+                      setButtonClick(false);
+                    }}
+                  >
+                    Click For Write Body
+                  </button>
+                  <br />
+                  <br />
+                  {openBodyTextButton && (
+                    <textarea
+                      className="form-textarea"
+                      value={body}
+                      onChange={handleBodyChange}
+                      rows="8"
+                      cols="25"
+                    />
+                  )}
+                  {error && (
+                    <p className="form-error" style={{ color: "red" }}>
+                      {error}
+                    </p>
+                  )}
+                </label>
+              ) : method === "DELETE" ? (
+                <div>
+                  <label className="form-label">
+                    <button
+                      className="form-button"
+                      onClick={() => {
+                        setOpenBodyTextButton(true);
+                        setButtonClick(false);
+                        setDeleteButton(true);
+                      }}
+                    >
+                      ID For Delete Data:
+                    </button>
+                    <br />
+                    <br />
+
+                    {deleteButton && (
+                      <input
+                        className="form-input"
+                        type="text"
+                        value={id}
+                        onChange={(e) => setId(e.target.value)}
+                      />
+                    )}
+                  </label>
+                </div>
+              ) : null}
+              <br />
+              <br />
+
+              <button className="form-button form-submit" type="submit">
+                Submit
+              </button>
+            </div>
+          )}
+        </form>
+      </div>
+      <div className="form-response">
+        {response && (
+          <pre className="form-response">
+            {JSON.stringify(response, null, 2)}
+          </pre>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+
+   const hanldeResponsesOfProtocols = async (url, method, data) => {
+      try {
+        const response = await axios({
+          method,
+          url,
+          data,
+        });
+        setResponse(response.data);
+      } catch (err) {
+        setResponse(err.message);
+      }
+    };
